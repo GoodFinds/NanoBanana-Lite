@@ -1,159 +1,296 @@
-import { Hono } from 'hono'
-import { cors } from 'hono/cors'
-import { logger } from 'hono/logger'
-import { cssContent } from './css-content'
-import { htmlContent } from './html-content'
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { htmlContent } from './html-content';
+import { cssContent } from './css-content';
 
-const app = new Hono()
+type Env = {
+  [key: string]: string;
+};
 
-// 全局错误处理 - 必须在所有中间件之前
-app.onError((err, c) => {
-  console.error(`Global error: ${err}`)
-  return c.json({ error: 'Internal server error' }, 500)
-})
+const app = new Hono<{ Bindings: Env }>();
 
-// 中间件
-app.use('*', cors({
-  origin: ['*'],
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-Title'],
-}))
-app.use('*', logger())
-
-// 健康检查端点
-app.get('/health', (c) => {
-  return c.json({ status: 'OK', timestamp: new Date().toISOString() })
-})
-
-// 静态CSS文件路由
-app.get("/styles.css", async (c) => {
-  return c.text(cssContent, 200, {
-    "Content-Type": "text/css",
-    "Cache-Control": "public, max-age=3600"
+// CORS 配置
+app.use(
+  '*',
+  cors({
+    origin: ['http://localhost:8791', 'https://*.workers.dev', '*'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
   })
-})
+);
 
-app.get('/', async (c) => {
-  try {
-    // 将 HTML 中的 API 端点替换为我们的代理端点
-    const modifiedHTML = htmlContent.replace(
-      /https:\/\/nano\.tinyfind\.org/g,
-      `${new URL(c.req.url).origin}`
-    )
-    return c.html(modifiedHTML)
-  } catch (error) {
-    console.error('Error serving homepage:', error)
-    throw error // 让全局错误处理器处理
-  }
-})
+// 主页路由
+app.get('/', (c) => {
+  return c.html(htmlContent);
+});
 
-// 输入验证函数
-function validateTitle(title: string | undefined): { isValid: boolean, error?: string } {
-  if (!title) {
-    return { isValid: false, error: 'Missing title in headers' }
+// CSS 样式路由
+app.get('/styles.css', (c) => {
+  return c.text(cssContent, 200, {
+    'Content-Type': 'text/css',
+  });
+});
+
+// Favicon路由
+app.get('/favicon.ico', (c) => {
+  return c.text('🍌', 200, {
+    'Content-Type': 'text/plain',
+  });
+});
+
+// 健康检查
+app.get('/health', (c) => {
+  return c.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// 解析SSE格式的响应
+function parseSSEResponse(text: string): any[] {
+  const lines = text.split('\n');
+  const events = [];
+  
+  for (const line of lines) {
+    if (line.startsWith('data: ')) {
+      try {
+        const jsonStr = line.substring(6); // 移除 "data: " 前缀
+        const data = JSON.parse(jsonStr);
+        events.push(data);
+      } catch (e) {
+        // 忽略无法解析的行
+      }
+    }
   }
   
-  if (typeof title !== 'string') {
-    return { isValid: false, error: 'Title must be a string' }
-  }
-  
-  if (title.length < 1) {
-    return { isValid: false, error: 'Title cannot be empty' }
-  }
-  
-  if (title.length > 200) {
-    return { isValid: false, error: 'Title too long (max 200 characters)' }
-  }
-  
-  // 基本的XSS防护
-  if (title.includes('<script') || title.includes('javascript:')) {
-    return { isValid: false, error: 'Invalid characters in title' }
-  }
-  
-  return { isValid: true }
+  return events;
 }
 
-// 图像生成端点
+// 图像生成 API - 返回图片二进制数据
 app.post('/api/v1/image', async (c) => {
   try {
-    // 获取请求头中的 title 参数
-    const title = c.req.header('X-Title') || c.req.header('HTTP-Referer')
-    
-    // 输入验证
-    const validation = validateTitle(title)
-    if (!validation.isValid) {
-      return c.json({ error: validation.error }, 400)
+    // 从请求体中读取数据
+    const body = await c.req.json().catch(() => ({}));
+    const prompt = body.prompt || '';
+    const model = body.model || 'nano-banana-fast'; // 默认使用快速版本
+    const size = body.size || '1K';
+    const aspect_ratio = body.aspect_ratio || '1:1';
+
+    console.log('收到图像生成请求:', { 
+      prompt: prompt.substring(0, 50) + '...',
+      model,
+      size,
+      aspect_ratio
+    });
+
+    // 验证请求
+    if (!prompt || prompt.trim() === '') {
+      return c.json({ error: 'Missing prompt' }, 400);
     }
 
-    console.log(`Generating image for title: ${title}`)
+    // 准备API请求 - 使用GrsAI API
+    const apiKey = 'sk-9568c79f97614b01bffa587134801be3';
+    const endpoint = 'https://api.grsai.com/v1/draw/nano-banana';
 
-    // 调用新的 GrsAI API
-    const response = await fetch('https://api.grsai.com/v1/draw/nano-banana', {
+    const requestBody = {
+      model: model,
+      prompt: prompt,
+      size: size,
+      aspect_ratio: aspect_ratio
+    };
+
+    console.log('发送到GrsAI API:', JSON.stringify(requestBody, null, 2));
+
+    // 调用GrsAI API
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer sk-9568c79f97614b01bffa587134801be3'
+        'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify({
-        model: 'nano-banana-fast',
-        prompt: title!,
-        size: '1K',
-        aspect_ratio: '1:1'
-      })
-    })
+      body: JSON.stringify(requestBody)
+    });
 
     if (!response.ok) {
-      console.error(`API error: ${response.status} ${response.statusText}`)
+      const errorText = await response.text();
+      console.error('API 错误响应:', response.status, errorText);
       return c.json({ 
-        error: 'Failed to generate image',
+        error: 'Image generation failed', 
+        details: errorText,
         status: response.status 
-      }, response.status as any)
+      }, response.status);
     }
 
-    // 读取整个响应文本
-    const responseText = await response.text()
+    // 读取流式响应
+    const responseText = await response.text();
+    console.log('API 原始响应:', responseText.substring(0, 200) + '...');
+
+    // 解析SSE响应
+    const events = parseSSEResponse(responseText);
+    console.log('解析的事件数量:', events.length);
+
+    // 找到最后一个成功的事件
+    const finalEvent = events.find(event => event.status === 'succeeded' && event.results);
     
-    // 查找最后一个成功的数据
-    const lines = responseText.split('\n')
-    let imageUrl = ''
-    
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        try {
-          const data = JSON.parse(line.substring(6))
-          if (data.status === 'succeeded' && data.results && data.results[0]) {
-            imageUrl = data.results[0].url
-            break
-          }
-        } catch (e) {
-          // 忽略JSON解析错误
-        }
+    if (finalEvent && finalEvent.results && finalEvent.results.length > 0) {
+      const imageUrl = finalEvent.results[0].url;
+      console.log('获取到图像URL:', imageUrl);
+      
+      // 下载图像并返回二进制数据
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status}`);
       }
-    }
+      
+      const imageBuffer = await imageResponse.arrayBuffer();
+      const contentType = imageResponse.headers.get('Content-Type') || 'image/png';
+      
+      console.log('图像下载成功，大小:', imageBuffer.byteLength, '字节');
+      
+      return c.body(imageBuffer, 200, {
+        'Content-Type': contentType,
+        'Content-Length': imageBuffer.byteLength.toString(),
+      });
+      
+    } else {
+      // 如果没有找到成功的结果，检查是否有失败信息
+      const failedEvent = events.find(event => event.status === 'failed' || event.error);
+      if (failedEvent) {
+        return c.json({ 
+          error: 'Image generation failed',
+          details: failedEvent.error || failedEvent.failure_reason || 'Unknown error',
+          task_id: failedEvent.id
+        }, 500);
+      }
 
-    if (!imageUrl) {
-      return c.json({ error: 'Image generation failed' }, 500)
+      return c.json({ 
+        error: 'No image generated',
+        details: 'No successful result found in response',
+        events: events.map(e => ({ status: e.status, progress: e.progress }))
+      }, 500);
     }
-
-    // 获取生成的图片
-    const imageResponse = await fetch(imageUrl)
-    if (!imageResponse.ok) {
-      return c.json({ error: 'Failed to fetch generated image' }, 500)
-    }
-
-    const imageData = await imageResponse.arrayBuffer()
-    
-    // 使用Hono的方式返回图像
-    return c.body(imageData, 200, {
-      'Content-Type': 'image/png',
-      'Content-Length': imageData.byteLength.toString(),
-      'Cache-Control': 'public, max-age=300' // 5分钟缓存
-    })
 
   } catch (error) {
-    console.error('Error in image generation:', error)
-    throw error // 让全局错误处理器处理
+    console.error('图像生成错误:', error);
+    return c.json({ 
+      error: 'Internal server error', 
+      details: error instanceof Error ? error.message : '未知错误' 
+    }, 500);
   }
-})
+});
 
-export default app
+// 图像生成 API (JSON格式) - 用于外部API调用
+app.post('/api/v1/image/json', async (c) => {
+  try {
+    // 从请求体中读取数据
+    const body = await c.req.json().catch(() => ({}));
+    const prompt = body.prompt || '';
+    const model = body.model || 'nano-banana-fast';
+    const size = body.size || '1K';
+    const aspect_ratio = body.aspect_ratio || '1:1';
+
+    // 验证请求
+    if (!prompt || prompt.trim() === '') {
+      return c.json({ error: 'Missing prompt' }, 400);
+    }
+
+    // 准备API请求
+    const apiKey = 'sk-9568c79f97614b01bffa587134801be3';
+    const endpoint = 'https://api.grsai.com/v1/draw/nano-banana';
+
+    const requestBody = {
+      model: model,
+      prompt: prompt,
+      size: size,
+      aspect_ratio: aspect_ratio
+    };
+
+    // 调用GrsAI API
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return c.json({ 
+        error: 'Image generation failed', 
+        details: errorText,
+        status: response.status 
+      }, response.status);
+    }
+
+    // 读取和解析响应
+    const responseText = await response.text();
+    const events = parseSSEResponse(responseText);
+    const finalEvent = events.find(event => event.status === 'succeeded' && event.results);
+    
+    if (finalEvent && finalEvent.results && finalEvent.results.length > 0) {
+      return c.json({
+        success: true,
+        images: finalEvent.results.map((item: any) => ({
+          url: item.url,
+          revised_prompt: prompt
+        })),
+        model: model,
+        created: Math.floor(Date.now() / 1000),
+        task_id: finalEvent.id
+      });
+    } else {
+      const failedEvent = events.find(event => event.status === 'failed' || event.error);
+      if (failedEvent) {
+        return c.json({ 
+          error: 'Image generation failed',
+          details: failedEvent.error || failedEvent.failure_reason || 'Unknown error',
+          task_id: failedEvent.id
+        }, 500);
+      }
+
+      return c.json({ 
+        error: 'No image generated',
+        details: 'No successful result found in response'
+      }, 500);
+    }
+
+  } catch (error) {
+    console.error('图像生成错误:', error);
+    return c.json({ 
+      error: 'Internal server error', 
+      details: error instanceof Error ? error.message : '未知错误' 
+    }, 500);
+  }
+});
+
+// 获取支持的模型列表
+app.get('/api/v1/models', (c) => {
+  return c.json({
+    models: [
+      {
+        id: 'nano-banana-pro',
+        name: 'Nano Banana Pro',
+        description: 'Google第二代绘图模型，高质量，支持1K/2K/4K分辨率',
+        cost: '1800积分/次'
+      },
+      {
+        id: 'nano-banana-fast',
+        name: 'Nano Banana Fast',
+        description: '特价版本，速度快，性价比高',
+        cost: '440积分/次'
+      },
+      {
+        id: 'nano-banana',
+        name: 'Nano Banana',
+        description: '官方直连版本，图片编辑能力强',
+        cost: '1400积分/次'
+      }
+    ],
+    sizes: ['1K', '2K', '4K'],
+    aspect_ratios: ['1:1', '2:3', '3:2', 'auto']
+  });
+});
+
+export default app;
