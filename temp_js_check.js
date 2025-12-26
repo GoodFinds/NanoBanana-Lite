@@ -1,86 +1,4 @@
-export const htmlContent = `
-<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>🍌 nano banana</title>
-  <link rel="stylesheet" href="/styles.css">
-</head>
-<body>
-  <header>
-    <h1><span class="banana-logo">🍌</span> nano banana</h1>
-  </header>
-  <main>
-    <!-- 卡片展示区 -->
-    <section class="section" id="resultsSection" style="display: none;">
-      <div class="card" style="min-height: 600px; position: relative;">
-        <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 8px; z-index: 10; align-items: center;">
-          <a class="btn" id="download" style="opacity: 0.7; font-size: 14px; display: none; text-decoration: none; height: 44px; line-height: 44px;">⬇️ 下载</a>
-          <button class="btn" id="clear" style="opacity: 0.7; font-size: 14px; height: 44px;">重置</button>
-        </div>
-        <div id="gallery" class="gallery" style="margin-top: 0;"></div>
-      </div>
-    </section>
-    <!-- 许愿输入区 -->
-    <section class="section" id="controlSection">
-      <div class="card">
-        <label>🎯 抽卡许愿</label>
-        <div style="position: relative;" id="promptContainer">
-          <textarea id="prompt" placeholder="描述你想要抽到的卡片...&#10;&#10;例如：美丽的精灵法师、炫酷的机甲战士、可爱的魔法少女&#10;&#10;💡 支持拖拽图片到此处上传"></textarea>
-          <div class="drag-overlay" id="dragOverlay">
-            <div class="drag-hint">📤 释放鼠标上传图片</div>
-          </div>
-          <div id="thumbs" class="thumbs" style="margin-top: 12px;"></div>
-          <div style="position: absolute; bottom: 12px; right: 12px; display: flex; gap: 8px; align-items: center;">
-            <label style="color: var(--accent); cursor: pointer; font-size: 14px;" title="点击或拖拽上传图片">
-              📎 <input id="file" type="file" accept="image/*" multiple hidden>
-            </label>
-            <span style="color: var(--text-secondary); font-size: 12px;" id="fileCount"></span>
-          </div>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div class="pill" id="status">准备抽卡</div>
-            <div style="font-size: 12px; color: var(--text-secondary);">传说 2% • 史诗 8% • 稀有 20% • 普通 70%</div>
-          </div>
-          <button class="btn primary" id="go" style="font-size: 18px; padding: 0 32px; height: 50px;">🎴 开始抽卡</button>
-        </div>
-      </div>
-    </section>
-    <!-- 高级设置 -->
-    <section class="section">
-      <div class="card">
-        <details>
-          <summary>⚙️ 高级设置</summary>
-          <div class="content">
-            <label>API Key (可选)</label>
-            <div class="krow" style="margin-bottom: 16px;">
-              <input id="userKey" type="text" placeholder="sk-or-...">
-              <label class="switch">
-                <input id="useMine" type="checkbox">
-                <span class="slider"></span>
-              </label>
-              <span style="font-size: 15px; color: var(--text-secondary);">使用自定义Key</span>
-            </div>
-            <button class="btn" id="saveKey">保存设置</button>
-            <label style="margin-top: 20px;">模型配置</label>
-            <div class="krow">
-              <input id="model" type="text" value="google/gemini-2.5-flash-image-preview:free" placeholder="模型ID">
-              <input id="endpoint" type="url" value="/api/chat" placeholder="API端点">
-            </div>
-          </div>
-        </details>
-        <div class="muted small" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-light);">
-          💡 支持标准 Chat Completions 格式，图像模型会在 <code>choices[0].message.content 中的图像数据</code> 返回图片
-        </div>
-      </div>
-    </section>
-  </main>
-  <footer>
-  </footer>
-<script>
-;(function() {
+;(() => {
   // ====== 内置加密Key区（已混淆，100条，单文件嵌入） ======
   const _p = ["nano-","banana","🟡2025-09-01","🍌","XiGordenSun@duge360-","公号","AI加速派"].join("");
   const OBF_KEYS = [
@@ -119,7 +37,7 @@ export const htmlContent = `
     }
     var dragCounter = 0;
     // 阻止默认的拖拽行为
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       promptContainer.addEventListener(eventName, preventDefaults, false);
       document.body.addEventListener(eventName, preventDefaults, false);
     });
@@ -159,11 +77,11 @@ export const htmlContent = `
       var files = e.dataTransfer.files;
       if (files.length > 0) {
         // 过滤出图片文件
-        var imageFiles = Array.from(files).filter(function(file) { return file.type.startsWith('image/'); });
+        var imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
         if (imageFiles.length > 0) {
           // 模拟文件输入
           var dt = new DataTransfer();
-          imageFiles.forEach(function(file) { dt.items.add(file); });
+          imageFiles.forEach(file => dt.items.add(file));
           fileEl.files = dt.files;
           // 触发文件变化事件
           var event = new Event('change', { bubbles: true });
@@ -203,7 +121,7 @@ export const htmlContent = `
   function toast(msg, bad){ 
     statusEl.textContent = msg; 
     statusEl.style.color = bad ? 'var(--err)' : ''; 
-    setTimeout(function() { statusEl.textContent = '准备抽卡'; }, 2000);
+    setTimeout(() => statusEl.textContent = '准备抽卡', 2000);
   }
   function status(s){ statusEl.textContent = s }
   function showEmptyState() {
@@ -442,7 +360,7 @@ export const htmlContent = `
       var images = (msg && msg.images && Array.isArray(msg.images)) ? msg.images.slice() : [];
       if (images.length === 0) {
         var c = description;
-        var datas = []; try { datas = c.match(/data:image\\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+/g) || []; } catch(e) { console.error("Regex error:", e); }
+        var datas = c.match(/data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=\-_]+/g) || [];
         for (var d=0; d<datas.length; d++){ images.push({type:'image_url', image_url:{url: datas[d]}}) }
       }
       if (images.length === 0) {
@@ -488,7 +406,7 @@ export const htmlContent = `
   }
   function updateThumbs(){
     thumbsEl.innerHTML = '';
-    imgs.forEach(function(img, i) {
+    imgs.forEach((img, i) => {
       var div = document.createElement('div');
       div.className = 'thumb';
       var imgEl = document.createElement('img');
@@ -496,7 +414,7 @@ export const htmlContent = `
       var x = document.createElement('div');
       x.className = 'x';
       x.textContent = '×';
-      x.onclick = function() { 
+      x.onclick = () => { 
         imgs.splice(i, 1); 
         updateThumbs(); 
         updateFileCount();
@@ -547,7 +465,3 @@ export const htmlContent = `
   async function sha1Hex(bytes){ var b=await crypto.subtle.digest('SHA-1', bytes); var arr=[].slice.call(new Uint8Array(b)); return arr.map(function(x){return x.toString(16).padStart(2,'0')}).join('') }
   function xorBytes(a, mask){ var out=new Uint8Array(a.length); for(var i=0;i<a.length;i++) out[i]=a[i]^mask[i%mask.length]; return out }
 })();
-</script>
-</body>
-</html>
-`;

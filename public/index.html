@@ -906,7 +906,7 @@
   <footer>
   </footer>
 <script>
-;(() => {
+;(function() {
   // ====== 内置加密Key区（已混淆，100条，单文件嵌入） ======
   const _p = ["nano-","banana","🟡2025-09-01","🍌","XiGordenSun@duge360-","公号","AI加速派"].join("");
   const OBF_KEYS = [
@@ -945,7 +945,7 @@
     }
     var dragCounter = 0;
     // 阻止默认的拖拽行为
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
       promptContainer.addEventListener(eventName, preventDefaults, false);
       document.body.addEventListener(eventName, preventDefaults, false);
     });
@@ -985,11 +985,11 @@
       var files = e.dataTransfer.files;
       if (files.length > 0) {
         // 过滤出图片文件
-        var imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+        var imageFiles = Array.from(files).filter(function(file) { return file.type.startsWith('image/'); });
         if (imageFiles.length > 0) {
           // 模拟文件输入
           var dt = new DataTransfer();
-          imageFiles.forEach(file => dt.items.add(file));
+          imageFiles.forEach(function(file) { dt.items.add(file); });
           fileEl.files = dt.files;
           // 触发文件变化事件
           var event = new Event('change', { bubbles: true });
@@ -1029,7 +1029,7 @@
   function toast(msg, bad){ 
     statusEl.textContent = msg; 
     statusEl.style.color = bad ? 'var(--err)' : ''; 
-    setTimeout(() => statusEl.textContent = '准备抽卡', 2000);
+    setTimeout(function() { statusEl.textContent = '准备抽卡'; }, 2000);
   }
   function status(s){ statusEl.textContent = s }
   function showEmptyState() {
@@ -1314,7 +1314,7 @@
   }
   function updateThumbs(){
     thumbsEl.innerHTML = '';
-    imgs.forEach((img, i) => {
+    imgs.forEach(function(img, i) {
       var div = document.createElement('div');
       div.className = 'thumb';
       var imgEl = document.createElement('img');
@@ -1322,7 +1322,7 @@
       var x = document.createElement('div');
       x.className = 'x';
       x.textContent = '×';
-      x.onclick = () => { 
+      x.onclick = function() { 
         imgs.splice(i, 1); 
         updateThumbs(); 
         updateFileCount();
