@@ -1,18 +1,18 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { logger } from 'hono/logger'
 import { cssContent } from './css-content'
 import { htmlContent } from './html-content'
 
 const app = new Hono()
 
-// CORS 配置
+// 中间件
 app.use('*', cors({
   origin: ['*'],
-  allowHeaders: ['Content-Type', 'Authorization', 'HTTP-Referer', 'X-Title'],
-  allowMethods: ['GET', 'POST', 'OPTIONS'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Title'],
 }))
-
-// 主页 - 返回 HTML 内容
+app.use('*', logger())
 
 // 静态CSS文件路由
 app.get("/styles.css", async (c) => {
@@ -25,89 +25,59 @@ app.get("/styles.css", async (c) => {
 app.get('/', async (c) => {
   try {
     // 将 HTML 中的 API 端点替换为我们的代理端点
-    const modifiedHtml = htmlContent.replace(/https:\/\/api\.nano-img\.com/g, '/api/chat')
-    return c.html(modifiedHtml)
+    const modifiedHTML = htmlContent.replace(
+      /https:\/\/nano\.tinyfind\.org/g,
+      `${new URL(c.req.url).origin}`
+    )
+    return c.html(modifiedHTML)
   } catch (error) {
-    return c.text(`Error loading page: ${error.message}`, 500)
+    console.error('Error serving homepage:', error)
+    return c.text('Internal Server Error', 500)
   }
 })
 
-// API 代理端点 - 转发到实际的 AI API
-app.post('/api/chat', async (c) => {
+// 图像生成端点
+app.post('/api/v1/image', async (c) => {
   try {
-    const body = await c.req.json()
-    const authHeader = c.req.header('Authorization')
-    const refererHeader = c.req.header('HTTP-Referer')
-    const titleHeader = c.req.header('X-Title')
+    // 获取请求头中的 title 参数
+    const title = c.req.header('X-Title') || c.req.header('HTTP-Referer')
     
-    // 目标 API 端点
-    const targetUrl = 'https://api.nano-img.com'
-    
-    console.log('Proxying request to:', targetUrl)
-    console.log('Request body:', JSON.stringify(body, null, 2))
-    
-    const response = await fetch(targetUrl, {
+    if (!title) {
+      return c.json({ error: 'Missing title in headers' }, 400)
+    }
+
+    console.log(`Generating image for title: ${title}`)
+
+    // 调用远程 API
+    const response = await fetch('https://nano.tinyfind.org/api/v1/image', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader || '',
-        'HTTP-Referer': refererHeader || '',
-        'X-Title': titleHeader || 'nano banana H5',
-      },
-      body: JSON.stringify(body)
-    })
-    
-    const responseText = await response.text()
-    console.log('Response status:', response.status)
-    console.log('Response body:', responseText.slice(0, 200) + '...')
-    
-    // 返回原始响应
-    return new Response(responseText, {
-      status: response.status,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, HTTP-Referer, X-Title',
+        'X-Title': title,
+        'HTTP-Referer': title
       }
     })
-  } catch (error) {
-    console.error('API proxy error:', error)
-    return c.json({
-      error: {
-        message: `API请求失败: ${error.message}`
-      }
-    }, 500)
-  }
-})
 
-// 健康检查
-app.get('/health', (c) => {
-  return c.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    service: 'nano-img-hono'
-  })
-})
-
-// API 信息端点
-app.get('/api/info', (c) => {
-  return c.json({
-    name: 'nano banana AI 抽卡',
-    description: 'AI 图像生成抽卡游戏',
-    endpoints: {
-      '/': 'Web 界面',
-      '/api/chat': 'AI 图像生成 API 代理',
-      '/health': '健康检查',
-      '/api/info': 'API 信息'
+    if (!response.ok) {
+      console.error(`API error: ${response.status} ${response.statusText}`)
+      return c.json({ error: 'Failed to generate image' }, response.status)
     }
-  })
-})
 
-// 404 处理
-app.notFound((c) => {
-  return c.json({ error: 'Not Found', path: c.req.path }, 404)
+    // 获取响应数据
+    const imageData = await response.arrayBuffer()
+    
+    // 返回图像
+    return new Response(imageData, {
+      headers: {
+        'Content-Type': 'image/png',
+        'Content-Length': imageData.byteLength.toString(),
+      }
+    })
+
+  } catch (error) {
+    console.error('Error in image generation:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
 })
 
 export default app
