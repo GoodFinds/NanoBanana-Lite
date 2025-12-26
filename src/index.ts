@@ -118,7 +118,7 @@ app.post('/api/v1/image', async (c) => {
         error: 'Image generation failed', 
         details: errorText,
         status: response.status 
-      }, response.status);
+      }, 500);
     }
 
     // 读取流式响应
@@ -221,7 +221,7 @@ app.post('/api/v1/image/json', async (c) => {
         error: 'Image generation failed', 
         details: errorText,
         status: response.status 
-      }, response.status);
+      }, 500);
     }
 
     // 读取和解析响应
