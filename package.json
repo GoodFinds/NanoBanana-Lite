@@ -1,34 +1,38 @@
 {
   "name": "nano-img-hono",
   "version": "1.0.0",
+  "description": "AI 图像生成抽卡游戏 - 基于 Hono.js 和 Cloudflare Workers",
   "main": "src/index.ts",
-  "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "dev:local": "wrangler dev --local",
+    "dev": "wrangler dev --port 8791",
+    "dev:local": "wrangler dev --local --port 8791",
     "deploy": "wrangler deploy",
-    "build": "wrangler deploy --dry-run",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.{ts,js,css,html}\"",
+    "lint": "eslint src --ext .ts,.js",
+    "type-check": "tsc --noEmit"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/GoodFinds/nano-img-hono.git"
-  },
-  "keywords": ["hono", "cloudflare-workers", "ai", "image-generation"],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/GoodFinds/nano-img-hono/issues"
-  },
-  "homepage": "https://github.com/GoodFinds/nano-img-hono#readme",
-  "description": "AI Image Generation Card Game using Hono.js",
+  "keywords": [
+    "ai",
+    "image-generation",
+    "hono",
+    "cloudflare-workers",
+    "typescript",
+    "card-game"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
   "dependencies": {
-    "hono": "^4.6.10",
-    "@hono/node-server": "^1.13.7"
+    "hono": "^4.0.0"
   },
   "devDependencies": {
-    "wrangler": "^3.85.0",
-    "typescript": "^5.6.3",
-    "@types/node": "^22.10.2"
+    "@cloudflare/workers-types": "^4.20241106.0",
+    "@types/node": "^22.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0",
+    "wrangler": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
