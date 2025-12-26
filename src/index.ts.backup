@@ -6,12 +6,6 @@ import { htmlContent } from './html-content'
 
 const app = new Hono()
 
-// 全局错误处理 - 必须在所有中间件之前
-app.onError((err, c) => {
-  console.error(`Global error: ${err}`)
-  return c.json({ error: 'Internal server error' }, 500)
-})
-
 // 中间件
 app.use('*', cors({
   origin: ['*'],
@@ -19,11 +13,6 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization', 'X-Title'],
 }))
 app.use('*', logger())
-
-// 健康检查端点
-app.get('/health', (c) => {
-  return c.json({ status: 'OK', timestamp: new Date().toISOString() })
-})
 
 // 静态CSS文件路由
 app.get("/styles.css", async (c) => {
@@ -43,35 +32,9 @@ app.get('/', async (c) => {
     return c.html(modifiedHTML)
   } catch (error) {
     console.error('Error serving homepage:', error)
-    throw error // 让全局错误处理器处理
+    return c.text('Internal Server Error', 500)
   }
 })
-
-// 输入验证函数
-function validateTitle(title: string | undefined): { isValid: boolean, error?: string } {
-  if (!title) {
-    return { isValid: false, error: 'Missing title in headers' }
-  }
-  
-  if (typeof title !== 'string') {
-    return { isValid: false, error: 'Title must be a string' }
-  }
-  
-  if (title.length < 1) {
-    return { isValid: false, error: 'Title cannot be empty' }
-  }
-  
-  if (title.length > 200) {
-    return { isValid: false, error: 'Title too long (max 200 characters)' }
-  }
-  
-  // 基本的XSS防护
-  if (title.includes('<script') || title.includes('javascript:')) {
-    return { isValid: false, error: 'Invalid characters in title' }
-  }
-  
-  return { isValid: true }
-}
 
 // 图像生成端点
 app.post('/api/v1/image', async (c) => {
@@ -79,10 +42,8 @@ app.post('/api/v1/image', async (c) => {
     // 获取请求头中的 title 参数
     const title = c.req.header('X-Title') || c.req.header('HTTP-Referer')
     
-    // 输入验证
-    const validation = validateTitle(title)
-    if (!validation.isValid) {
-      return c.json({ error: validation.error }, 400)
+    if (!title) {
+      return c.json({ error: 'Missing title in headers' }, 400)
     }
 
     console.log(`Generating image for title: ${title}`)
@@ -92,32 +53,30 @@ app.post('/api/v1/image', async (c) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Title': title!,
-        'HTTP-Referer': title!
+        'X-Title': title,
+        'HTTP-Referer': title
       }
     })
 
     if (!response.ok) {
       console.error(`API error: ${response.status} ${response.statusText}`)
-      return c.json({ 
-        error: 'Failed to generate image',
-        status: response.status 
-      }, response.status)
+      return c.json({ error: 'Failed to generate image' }, response.status)
     }
 
     // 获取响应数据
     const imageData = await response.arrayBuffer()
     
-    // 使用Hono的方式返回图像
-    return c.body(imageData, 200, {
-      'Content-Type': 'image/png',
-      'Content-Length': imageData.byteLength.toString(),
-      'Cache-Control': 'public, max-age=300' // 5分钟缓存
+    // 返回图像
+    return new Response(imageData, {
+      headers: {
+        'Content-Type': 'image/png',
+        'Content-Length': imageData.byteLength.toString(),
+      }
     })
 
   } catch (error) {
     console.error('Error in image generation:', error)
-    throw error // 让全局错误处理器处理
+    return c.json({ error: 'Internal server error' }, 500)
   }
 })
 
