@@ -67,7 +67,7 @@ export const htmlContent = `
             <label style="margin-top: 20px;">模型配置</label>
             <div class="krow">
               <input id="model" type="text" value="google/gemini-2.5-flash-image-preview:free" placeholder="模型ID">
-              <input id="endpoint" type="url" value="/api/chat" placeholder="API端点">
+              <input id="endpoint" type="url" value="/api/v1/image" placeholder="API端点">
             </div>
           </div>
         </details>
