@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { cssContent } from './css-content'
 import { htmlContent } from './html-content'
 
 const app = new Hono()
@@ -16,12 +15,19 @@ app.use('*', cors({
 
 // 静态CSS文件路由
 app.get("/styles.css", async (c) => {
-  return c.text(cssContent, 200, {
-    "Content-Type": "text/css",
-    "Cache-Control": "public, max-age=3600"
-  })
+  try {
+    const fs = await import("fs/promises")
+    const path = await import("path")
+    const cssPath = path.join(process.cwd(), "src", "styles.css")
+    const cssContent = await fs.readFile(cssPath, "utf-8")
+    return c.text(cssContent, 200, {
+      "Content-Type": "text/css",
+      "Cache-Control": "public, max-age=3600"
+    })
+  } catch (error) {
+    return c.text("/* CSS file not found */", 404)
+  }
 })
-
 app.get('/', async (c) => {
   try {
     // 将 HTML 中的 API 端点替换为我们的代理端点
