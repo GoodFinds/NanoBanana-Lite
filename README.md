@@ -95,6 +95,57 @@ nano-img-hono/
 - 环境变量
 - 路由设置
 
+### Supabase 数据库配置
+
+项目已集成 Supabase 数据库支持。配置步骤如下：
+
+1. **获取 Supabase 凭证**
+   - 登录 [Supabase Dashboard](https://app.supabase.com)
+   - 创建或选择你的项目
+   - 在 Settings > API 中获取：
+     - `Project URL` (SUPABASE_URL)
+     - `anon public` key (SUPABASE_ANON_KEY)
+     - `service_role` key (SUPABASE_SERVICE_ROLE_KEY，可选，用于服务端操作)
+
+2. **设置环境变量**
+   ```bash
+   # 设置 Supabase URL
+   wrangler secret put SUPABASE_URL
+   
+   # 设置 Supabase Anon Key
+   wrangler secret put SUPABASE_ANON_KEY
+   
+   # 设置 Supabase Service Role Key（可选）
+   wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+   ```
+
+3. **在代码中使用 Supabase**
+   ```typescript
+   import { createSupabaseClient } from './supabase';
+   
+   // 在路由处理函数中
+   app.get('/api/data', async (c) => {
+     const supabase = createSupabaseClient(c.env);
+     
+     // 查询数据
+     const { data, error } = await supabase
+       .from('your_table')
+       .select('*');
+     
+     if (error) {
+       return c.json({ error: error.message }, 500);
+     }
+     
+     return c.json({ data });
+   });
+   ```
+
+4. **使用服务角色密钥（绕过 RLS）**
+   ```typescript
+   // 对于需要绕过 Row Level Security 的操作
+   const supabase = createSupabaseClient(c.env, true);
+   ```
+
 ## 🔄 开发命令
 
 ```bash

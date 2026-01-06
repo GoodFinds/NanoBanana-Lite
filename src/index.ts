@@ -2,9 +2,24 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { htmlContent } from './html-content';
 import { cssContent } from './css-content';
+import { createSupabaseClient, validateSupabaseConfig } from './supabase';
 
 type Env = {
-  [key: string]: string;
+  // Supabase 配置
+  SUPABASE_URL?: string;
+  SUPABASE_ANON_KEY?: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
+  // 支持 Publishable 和 Secret keys
+  SUPABASE_PUBLISHABLE_KEY?: string;
+  SUPABASE_SECRET_KEY?: string;
+  // 数据库直连配置（可选）
+  SUPABASE_DB_PASSWORD?: string;
+  SUPABASE_DB_HOST?: string;
+  SUPABASE_DB_PORT?: string;
+  SUPABASE_DB_NAME?: string;
+  SUPABASE_DB_USER?: string;
+  // 其他环境变量
+  [key: string]: string | undefined;
 };
 
 const app = new Hono<{ Bindings: Env }>();
@@ -72,7 +87,7 @@ app.post('/api/v1/image', async (c) => {
     // 从请求体中读取数据
     const body = await c.req.json().catch(() => ({}));
     const prompt = body.prompt || '';
-    const model = body.model || 'nano-banana-fast'; // 默认使用快速版本
+    const model = body.model || 'nano-banana-pro'; // 默认使用快速版本
     const size = body.size || '1K';
     const aspect_ratio = body.aspect_ratio || '1:1';
 
@@ -185,8 +200,8 @@ app.post('/api/v1/image/json', async (c) => {
     // 从请求体中读取数据
     const body = await c.req.json().catch(() => ({}));
     const prompt = body.prompt || '';
-    const model = body.model || 'nano-banana-fast';
-    const size = body.size || '1K';
+    const model = body.model || 'nano-banana-pro';
+    const size = body.size || '2K';
     const aspect_ratio = body.aspect_ratio || '1:1';
 
     // 验证请求
@@ -291,6 +306,47 @@ app.get('/api/v1/models', (c) => {
     sizes: ['1K', '2K', '4K'],
     aspect_ratios: ['1:1', '2:3', '3:2', 'auto']
   });
+});
+
+// Supabase 数据库健康检查
+app.get('/api/v1/db/health', async (c) => {
+  try {
+    if (!validateSupabaseConfig(c.env)) {
+      return c.json({
+        status: 'not_configured',
+        message: 'Supabase 配置未完成。请设置 SUPABASE_URL 和 SUPABASE_ANON_KEY 环境变量。'
+      }, 503);
+    }
+
+    const supabase = createSupabaseClient(c.env);
+    
+    // 尝试连接数据库（执行一个简单的查询）
+    const { data, error } = await supabase
+      .from('_supabase_migrations')
+      .select('version')
+      .limit(1);
+
+    if (error && error.code !== 'PGRST116') {
+      // PGRST116 表示表不存在，这是正常的（如果表不存在）
+      return c.json({
+        status: 'error',
+        message: 'Supabase 连接失败',
+        error: error.message
+      }, 500);
+    }
+
+    return c.json({
+      status: 'ok',
+      message: 'Supabase 连接正常',
+      configured: true
+    });
+  } catch (error) {
+    return c.json({
+      status: 'error',
+      message: 'Supabase 连接异常',
+      error: error instanceof Error ? error.message : '未知错误'
+    }, 500);
+  }
 });
 
 export default app;
