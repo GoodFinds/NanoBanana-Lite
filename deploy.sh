@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Cloudflare部署脚本
-echo "开始部署nano-img-hono到Cloudflare Workers..."
+echo "开始部署NanoBanana-Lite到Cloudflare Workers..."
 
 # 验证Cloudflare API Token
 echo "验证Cloudflare API Token..."

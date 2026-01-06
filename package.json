@@ -1,5 +1,5 @@
 {
-  "name": "nano-img-hono",
+  "name": "NanoBanana-Lite",
   "version": "1.0.0",
   "description": "AI 图像生成抽卡游戏 - 基于 Hono.js 和 Cloudflare Workers",
   "main": "src/index.ts",

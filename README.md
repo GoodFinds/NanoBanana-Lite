@@ -44,7 +44,7 @@ npm run deploy
 - ✅ **简单部署**: 单文件打包，部署更简单
 
 ```
-nano-img-hono/
+NanoBanana-Lite/
 ├── src/
 │   └── index.ts          # 主服务文件（包含所有资源）
 ├── public/

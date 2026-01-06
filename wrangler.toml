@@ -1,4 +1,4 @@
-name = "nano-img-hono"
+name = "NanoBanana-Lite"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
@@ -9,7 +9,7 @@ SUPABASE_PUBLISHABLE_KEY = "sb_publishable_R6QiESNjXTueXkuISjfgEw_N32XrVcV"
 SUPABASE_SECRET_KEY = "sb_secret_paA9ofsC_TbzKQlUaw4a-Q_MYEgE8sR"
 
 [env.production]
-name = "nano-img-hono"
+name = "NanoBanana-Lite"
 routes = [
   { pattern = "s.nano-img.com/*", custom_domain = true }
 ]
@@ -21,7 +21,7 @@ SUPABASE_PUBLISHABLE_KEY = "sb_publishable_R6QiESNjXTueXkuISjfgEw_N32XrVcV"
 SUPABASE_SECRET_KEY = "sb_secret_paA9ofsC_TbzKQlUaw4a-Q_MYEgE8sR"
 
 [env.development]
-name = "nano-img-hono-dev"
+name = "NanoBanana-Lite-dev"
 
 # 开发环境 Supabase 配置
 [env.development.vars]
